@@ -1,9 +1,8 @@
 rm(list = ls())
-setwd("path to working drirectory")
+setwd("path to wd")
 
 library(lubridate)
 library(caret)
-library(gbm)
 
 train <- read.csv('train.csv', header = TRUE)
 test <- read.csv('test.csv',header = TRUE)
@@ -42,22 +41,44 @@ trainY <- subset(train, select = c(revenue))
 testX <- test[,6:49]
 
 ##Find highly correlated variables and eliminate them
-highCorr <- findCorrelation(cor(rbind(trainX, testX, use="pairwise", method="spearman")), cutoff = .80, verbose = TRUE) 
+highCorr <- findCorrelation(cor(rbind(trainX, testX)), .95) 
 
 trainXFiltered <- trainX [,-highCorr]
 testXFiltered <- testX [,-highCorr]
 
 set.seed(1234)
 
-###k fold cross validation for gbm
+##k fold cross validation - rf and gbm
 
 index <- createFolds(trainY[,1], returnTrain=TRUE)
 cntrl <- trainControl(method ="cv", index=index)
 
+rf1 <- train(x = subset(trainXFiltered), y=trainY$revenue , method= "rf", trControl=cntrl)
+rf1
+
 gbm1 <- train(x = subset(trainXFiltered, select = - c(MB, DT)), y=trainY$revenue , method= "gbm", trControl=cntrl)
 gbm1
 
-########################BUILDING THE MODEL (gbm)
+
+########################BUILDING THE MODEL (RandomForest)
+Fit <- randomForest(revenue~.
+                              , data=trainRepeat, importance=TRUE, ntree=500, mtry=2)
+
+#varImpPlot(Fit)
+
+TestFit <- data.frame(testXFiltered)
+
+predict <- predict(Fit, TestFit)
+
+submit <- data.frame(Id = test$Id, Prediction=predict)
+
+write.csv(submit, file="submission.csv", row.names=FALSE)
+
+########################BUILDING THE MODEL (Boosted Trees)
+Fit <- randomForest(revenue~.
+                              , data=trainRepeat, importance=TRUE, ntree=500, mtry=2)
+
+#varImpPlot(Fit)
 
 train_data_model <- 
   cbind(subset(trainXFiltered), revenue=trainY$revenue)
@@ -77,25 +98,5 @@ prediction <- predict.gbm(model, TestFit,
                           shrinkage= 0.1)
 
 submit <- data.frame(Id = test$Id, Prediction=prediction)
-
-write.csv(submit, file="submission.csv", row.names=FALSE)
-
-###k fold cross validation for randomForest
-
-rf1 <- train(x = subset(trainXFiltered), y=trainY$revenue , method= "rf", trControl=cntrl)
-rf1
-
-########################BUILDING THE MODEL (randomForest)
-
-Fit <- randomForest(revenue~.
-                              , data=trainNew, importance=TRUE, ntree=500, mtry=2)
-
-#varImpPlot(Fit)
-
-TestFit <- data.frame(testXFiltered)
-
-predict <- predict(Fit, TestFit)
-
-submit <- data.frame(Id = test$Id, Prediction=predict)
 
 write.csv(submit, file="submission.csv", row.names=FALSE)
